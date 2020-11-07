@@ -131,3 +131,128 @@ What is going on, this doesn't make any sense?
   * [IDN homograph attacks](https://en.wikipedia.org/wiki/IDN_homograph_attack) 
 
 </details>
+
+---
+
+### A mysteriously failing Java integration test
+
+You are a software developer contributing to a tiny open-source library 
+for a file management system written in Java.
+It's late in the evening, and you are pulling the latest changes done by a 
+few other collaborators and starting working on adding a few integration tests.
+The integration tests for the library you work on are quite simple. 
+The library's module you are testing will generate a text file on disk based 
+on the user configuration provided.
+An existing file containing the expected output, has been pre-created 
+and is stored with the project's test harness (the file is just a few lines of YAML).
+The file produced during the test run is then compared to the expected file bit-for-bit 
+to make sure they contain the same data. 
+
+This is when it gets weird. 
+You run the integration test you've just added and it fails and so does all other integration
+tests where that file is being used (other tests using other files pass though).
+
+Failing test Java source code (snippet only for brevity):
+
+```java
+    ...
+    byte[] actual = Files.readAllBytes(
+        Paths.get("src/test/resources/conversion/modules/conversion_actual.yaml"));
+    byte[] expected = Files.readAllBytes(
+        Paths.get("src/test/resources/conversion/modules/conversion_expected.yaml"));
+    assertTrue(Arrays.equals(actual, expected));
+```
+
+The error message you get when running the test locally:
+
+```
+$ /opt/javautils/mvn test
+...
+Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.249 sec <<< FAILURE!
+testMain(com.ffmanage.conversion.ITYamlTest)  Time elapsed: 0.248 sec  <<< FAILURE!
+java.lang.AssertionError
+        at org.junit.Assert.fail(Assert.java:92)
+        at org.junit.Assert.assertTrue(Assert.java:43)
+        at org.junit.Assert.assertTrue(Assert.java:54)
+        at com.ffmanage.conversion.ITYamlTest.testMain(ITYamlTest.java:51)
+```
+
+The line 51 is the line that asserts that two byte arrays are equal.
+
+You take a look inside the actual and the expected files and they look identical.
+After comparing the files contents quickly and not being able to see what can be the issue, 
+you decide to replace the expected file in the test harness with the file 
+you've just produced by running the test.
+After this, all other tests and your test pass.
+You think that the file was corrupted or something so you commit and push your changes.
+A week after, a new project contributor posts a bug report in the tracking system claiming 
+that the integration tests they wrote earlier that do comparison with the expected file 
+you've recently re-created fail however they used to pass on their machine.
+
+The error message the contributor gets when running the test locally:
+
+```
+C:\Users\robby> C:\MyDev\utils\mvn test
+...
+Tests run: 1, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 0.249 sec <<< FAILURE!
+testMain(com.ffmanage.conversion.ITYamlTest)  Time elapsed: 0.248 sec  <<< FAILURE!
+java.lang.AssertionError
+        at org.junit.Assert.fail(Assert.java:92)
+        at org.junit.Assert.assertTrue(Assert.java:43)
+        at org.junit.Assert.assertTrue(Assert.java:54)
+        at com.ffmanage.conversion.ITYamlTest.testMain(ITYamlTest.java:51)
+```
+
+What do you think is going on?
+
+<details>
+  <summary>Hint 1</summary>
+  Can you spot any notable differences in your environment and the one of the contributor?
+</details>
+
+<details>
+  <summary>Hint 2</summary>
+  How did you compare the actual and the expected files contents? Maybe there are some
+  differences in how text is represented in your environment and the one of the contributor?
+</details>
+
+<details>
+  <summary>Solution</summary>
+ 
+  Looking at the command line output, you can notice that the contributor is on a Windows machine
+  and you are on a Linux machine (based on the path notion used to access the `mvn` executable). 
+  There are differences in what control characters are used to signify the 
+  end of a line in text files.
+  The integration test failed because the byte representation for linefeed/carriage return is different on these
+  operating systems and when comparing the bytecode arrays, the assertion fails.
+  If your file hadn't have any line breaks, the test would have passed.
+
+  To make the test more robust, you could have compared the lines instead of the bytes, like this:
+
+  ```java
+    ...
+    List<String> actualStrings = Files.readAllLines(
+        Paths.get("src/test/resources/conversion/modules/conversion_actual.yaml"));
+    List<String> expectedStrings = Files.readAllLines(
+        Paths.get("src/test/resources/conversion/modules/conversion_expected.yaml"));
+    assertEquals(actualStrings, expectedStrings);
+  ```
+
+  Also, when constructing the text to write to files programmatically 
+  (when you know that the files can be accessed in multiple operating systems), make sure
+  to use a system dependent line separator that your programming language provides 
+  such as `System.lineSeparator()` in Java.
+  
+  It is also possible to convert text files newline characters by using the `dos2unix` and `unix2dos`
+  utilities or any general purpose programming language that supports reading and writing text files.
+  Be prepared to see the [`^M`](https://unix.stackexchange.com/questions/32001/what-is-m-and-how-do-i-get-rid-of-it) carriage-return character
+  as well when looking at the files originated in Windows.
+
+  Resources:
+  * [End Of Line Characters: Peter Benjamin](https://peterbenjamin.com/seminars/crossplatform/texteol.html)
+  * [Newline: Wikipedia](https://en.wikipedia.org/wiki/Newline)
+  * [`System.lineSeparator()` : Java](https://docs.oracle.com/javase/8/docs/api/java/lang/System.html#lineSeparator--)
+  * [dos2unix](http://manpages.ubuntu.com/manpages/bionic/man1/dos2unix.1.html)
+  * [unix2dos](http://manpages.ubuntu.com/manpages/bionic/en/man1/unix2dos.1.html)
+
+</details>
