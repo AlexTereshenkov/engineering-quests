@@ -256,3 +256,141 @@ What do you think is going on?
   * [unix2dos](http://manpages.ubuntu.com/manpages/bionic/en/man1/unix2dos.1.html)
 
 </details>
+
+### Fighting a Python f-string syntax error
+
+You are a network engineer and you've got a task to write a simple Python script.
+This script needs to be converted to an executable to make running it easier.
+You have run `chmod +x script.py` to make it possible to launch the script from the command line
+as an executable in the form of `./script.py arg1 arg2`.
+
+You've verified it's an executable (the `x` permission is present):
+
+```
+$ ll
+total 4.0K
+-rwxr-xr-x 1 username username 138 Nov 29 13:57 script.py
+```
+
+This Python script takes a few arguments from the command line and then does some work.
+When you run it, you get a `SyntaxError` though.
+When you inspect the file in your IDE, no errors are shown and you have been able to successfully 
+run a Python formatter on the file along with a couple of linters and no issues were found.
+
+The file contents (truncated for brevity):
+
+```python
+#!/usr/bin/env python
+import sys
+
+print(f"Fist argument is \\ "
+      f"{sys.argv[1]}")
+print(f"Second argument is \\ "
+      f"{sys.argv[2]}")
+
+...
+```
+
+You run:
+
+```
+$ ./script.py hello world
+  File "./script.py", line 4
+    print(f"Fist argument is \\"
+                               ^
+SyntaxError: invalid syntax
+```
+
+You experiment running the `print` commands from the script above in a Python interactive
+console and they run fine.
+You are not very familiar with Python so you seek for help.
+You push the file to a Git repository to make it available to a colleague 
+to let them run the script, and they don't get this error, the script runs just fine.
+This is what they shared back to you:
+
+```
+$ python3 script.py hello world
+Fist argument is \ hello
+Second argument is \ world
+```
+
+How come they can run it and you can't?
+
+<details>
+  <summary>Hint 1</summary>
+  Can there be any difference in the environments that are used to run the Python script 
+  (yours and your colleague's)?
+</details>
+
+<details>
+  <summary>Hint 2</summary>
+  Have the colleague and you run the script using the same command?
+</details>
+
+<details>
+  <summary>Hint 3</summary>
+  When Python script is run as an executable from a Bash shell, what Python interpreter is used to run it?
+</details>
+
+<details>
+  <summary>Solution</summary>
+  You could have thought first that there must be something weird with the escape characters
+  in the f-string.
+  However, this was just a distraction.
+  You may have noticed that your colleague ran the script by specifying the Python interpreter explicitly:
+
+  ```
+  $ python3 script.py 
+  ```
+
+  You, in contrast, relied on something called a [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) that defines what program will be used to run the file.
+
+  So, with the shebang in the `script.py`, the Python script is run like this:
+  
+  ```
+  $ /usr/bin/env python script.py hello world
+  ```
+  
+  You may have noticed that the shebang refers to the `python` which by default points
+  to Python 2 interpreter.
+  The f-strings have been introduced in Python 3.6 and thus a Python script containing
+  f-strings will fail to be parsed by a Python 2 interpreter.
+
+  It's worth mentioning that when you have a Python virtual environment activated,
+  the `python` directive may point to the `python3` symbolic link inside the virtual
+  environment:
+
+  ```
+  $ python3 -m venv sampleenv       
+  $ source sampleenv/bin/activate
+  (sampleenv) $ ll sampleenv/bin | grep "py"              
+  lrwxrwxrwx 1 username username    7 Nov 29 14:32 python -> python3
+  lrwxrwxrwx 1 username username   47 Nov 29 14:32 python3 -> /usr/bin/python3
+  ```
+  
+  This means that you could have run the script successfully 
+  if your Python 3 virtual environment was activated.
+  However, for extra clarity, it may be worth to change the shebang and use the `python3` instead.
+
+  It is also important to note that `python3` can point to older Python 3 versions, for instance,
+  the Python 3.5 interpreter would also fail to parse a Python program containing f-strings:
+
+  ```
+  $ python3.5 -c "var = 10; print(f'{var}')"
+    File "<string>", line 1
+    var = 10; print(f'{var}')
+                           ^
+  SyntaxError: invalid syntax
+  ```
+
+  To make sure that your programs are supported by multiple Python versions
+  (for instance, you can't use [dataclasses](https://docs.python.org/3/library/dataclasses.html)
+   that were added in Python 3.7 if your code will run on Python 3.6),
+  you'd have to run the tests across multiple Python versions
+  which can done using [tox](https://alextereshenkov.github.io/run-python-tests-with-tox-in-docker.html).
+
+  Resources:
+  * [Python f-strings](https://realpython.com/python-f-strings/)
+  * [Shebang: Wikipedia](https://en.wikipedia.org/wiki/Shebang_(Unix))
+
+</details>
