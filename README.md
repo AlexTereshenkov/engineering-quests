@@ -343,12 +343,12 @@ How come they can run it and you can't?
   $ python3 script.py 
   ```
 
-  You, in contrast, relied on something called a [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) that defines what program will be used to run the file.
+  You, in contrast, relied on something called a [shebang](https://en.wikipedia.org/wiki/Shebang_(Unix)) that defines what program will be used to run the file (using the program search path to find that program).
 
   So, with the shebang in the `script.py`, the Python script is run like this:
   
   ```
-  $ /usr/bin/env python script.py hello world
+  $ python script.py hello world
   ```
   
   You may have noticed that the shebang refers to the `python` which by default points
