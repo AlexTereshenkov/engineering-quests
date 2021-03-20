@@ -394,3 +394,109 @@ How come they can run it and you can't?
   * [Shebang: Wikipedia](https://en.wikipedia.org/wiki/Shebang_(Unix))
 
 </details>
+
+### A peculiar country code in YAML
+
+You are a data scientist and as part of your data munging operations 
+you've got a task to write a simple Python script.
+This script needs to read a YAML file you've got from a customer 
+and you want to run some data sanity checks.
+
+```text
+country_codes:
+- DK
+- SE
+- NO
+- DE
+- FR
+- FI
+- ES
+```
+
+You've got the [PyYAML](https://pypi.org/project/PyYAML/) package installed 
+in your fresh Python virtual environment:
+
+```bash
+$ python3 -m venv sandbox
+$ source sandbox/bin/activate
+$ pip install pyyaml
+```
+
+You just finished writing the Python script:
+
+```python
+import yaml
+with open('data.yaml') as fh:
+    countries = yaml.load(fh, Loader=yaml.FullLoader)['country_codes']
+
+# check number of countries read
+print(f"Number of countries read is {len(countries)}")
+
+# check that each country code is 2 characters
+not_2_chars = [code for code in countries if len(str(code)) != 2]
+print(
+    f"Number of country codes that are not 2 characters is {len(not_2_chars)}"
+)
+```
+
+You notice a thing that doesn't make any sense.
+When checking that each country code in the input YAML file 
+follows the [ISO 3166-1 alpha-2 standard](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2), 
+one code appears to be of different length and you are not sure how this could happen.
+
+```text
+$ python readfile.py
+Number of countries read is 7
+Number of country codes that are not of 2 characters is 1
+```
+
+Can you figure out what is going on without running the Python script yourself 
+and inspecting the variables?
+
+<details>
+  <summary>Hint 1</summary>
+  Is it possible that YAML specification has any special treatments for any of the values?
+</details>
+
+<details>
+  <summary>Hint 2</summary>
+  
+  Will `PyYAML` package read all country codes as strings? What if some of them are read into other data types?
+</details>
+
+<details>
+  <summary>Hint 3</summary>
+  Can you see any of the country codes that can represent a Boolean data type?
+</details>
+
+<details>
+  <summary>Solution</summary>
+  
+  Turns out YAML specification does have a special treatment for certain data types such as [Boolean](https://yaml.org/type/bool.html) and the Norway country code (`NO`) was read as `False`.
+
+  If you print the `countries` variable, you'll see:
+  ```
+  ['DK', 'SE', False, 'DE', 'FR', 'FI', 'ES']
+  ```
+  
+  This issue can be mitigated by using the quotes, `'NO'`, so that
+  the value will be read as a string. 
+  Alternative solution would be to use the `yaml.BaseLoader` so that everything will be a string by default:
+
+  ```python
+  yaml.load(fh, Loader=yaml.BaseLoader)
+  ```
+  
+  There is a useful Python package, `strictyaml`, that parses and validates only a 
+  restricted subset of the YAML specification which can be used instead of the `PyYAML`.
+
+  This peculiar problem is a reminder of how fragile our programs 
+  working with data can be when we are unaware of any implicit typing.
+  
+  Resources:
+  * [The Norway problem](https://hitchdev.com/strictyaml/why/implicit-typing-removed/)
+  * [YAML specification](https://yaml.org/)
+  * [PyYAML](https://pypi.org/project/PyYAML/)
+  * [strictyaml](https://pypi.org/project/strictyaml/)
+
+</details>
