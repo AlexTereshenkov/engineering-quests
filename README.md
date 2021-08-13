@@ -500,3 +500,59 @@ and inspecting the variables?
   * [strictyaml](https://pypi.org/project/strictyaml/)
 
 </details>
+
+### A failing conda build
+
+You are a build system engineer and you have just finished migrating a Git repository to [Bazel](https://docs.bazel.build/versions/4.1.0/build-ref.html#intro) build system. That wasn't really difficult - you just had to create a bunch of build metadata text files throughout the directory tree. Some time after, a data scientist from another team asks why they can't build a Conda package locally on their Mac laptop in the monorepo after pulling in the latest. They send a snippet of the `conda-build` log:
+
+```
+...
+running install
+running build
+running build_py
+creating build
+error: could not create 'build': File exists
+...
+```
+
+You are very surprised - the CI build pipeline builds the artifacts with Bazel and Conda just fine already for a few days and there haven't been any problems. What's going on?
+
+<details>
+  <summary>Hint 1</summary>
+
+  By following the link to the Bazel homepage, can you see what files are used to store build metadata information when using Bazel?
+</details>
+
+<details>
+  <summary>Hint 2</summary>
+
+  Your CI does build the artifacts both using Bazel and Conda fine. However, do you remember that your CI is running a Linux operating system and your colleague has a MacOS device?
+</details>
+
+<details>
+  <summary>Hint 3</summary>
+
+  Now you know that Bazel uses the `BUILD` file to store the build metadata, why does Conda say that the `build` file already exists in a directory that has the file named `BUILD` when run on MacOS?
+</details>
+
+<details>
+  <summary>Solution</summary>
+  
+  Turns out that in file systems, filenames can be case-sensitive or case-insensitive. For instance, on Windows, if you create a file `data.txt`, you cannot create another file `DATA.txt` beside it; this is because Windows is case-insensitive. The same applies by default to MacOS as well even though it's a UNIX-like system. So when `conda` attempts to create a file `build`, an existing `BUILD` file doesn't let it.
+
+  Linux, in contrast, has a case-sensitive file system, meaning that you can have `data.txt`, `Data.txt`, and `DATA.txt` stored in the same directory:
+
+  ```
+  $ touch data.txt Data.txt DATA.txt
+  $ ls *.txt            
+  DATA.txt  Data.txt  data.txt
+  ```
+  
+  Case sensitivity is important to be aware of in many cases, particularly when working with the files that can be accessed on different operating systems such as within [source code repositories](https://www.hanselman.com/blog/git-is-casesensitive-and-your-filesystem-may-not-be-weird-folder-merging-on-windows). Having two files, `Makefile` and `makefile`, in a Git repository may cause a lot of confusion and it's best to not let this happen.
+  
+  Resources:
+  * [Case sensitivity](https://en.wikipedia.org/wiki/Case_sensitivity#In_filesystems)
+  * [How to check if my HD is case sensitive or not?](https://apple.stackexchange.com/questions/71357/how-to-check-if-my-hd-is-case-sensitive-or-not)
+  * [MacOS file system formats](https://support.apple.com/en-gb/guide/disk-utility/dsku19ed921c/mac)
+  
+</details>
