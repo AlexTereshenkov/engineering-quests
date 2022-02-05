@@ -556,3 +556,79 @@ You are very surprised - the CI build pipeline builds the artifacts with Bazel a
   * [MacOS file system formats](https://support.apple.com/en-gb/guide/disk-utility/dsku19ed921c/mac)
   
 </details>
+
+### A perfect terminal command
+
+You are an engineer hacking in your terminal running a Python script. You think you've nailed it down and have found the right arguments that would do the job. However, when you run the script passing the arguments, you constantly get an error message. You've made sure the logic in Python code is right, and the file is free of syntax errors, but the annoying error persists.
+
+In troubleshooting efforts, you stripped everything out of the script leaving only a few dummy arguments for testing:
+
+```python
+import argparse
+
+parser = argparse.ArgumentParser(description='Sum integers.')
+parser.add_argument('--value1', type=int)
+parser.add_argument('--value2', type=int)
+parser.add_argument('--value3', type=int)
+
+args = parser.parse_args()
+print(sum([args.value1, args.value2, args.value3]))
+```
+
+You run the script but the error persists:
+
+```
+$ python3 script.py \
+    --value1=10 \
+    --value2=20 \ 
+    --value3=30
+usage: script.py [-h] [--value1 VALUE1] [--value2 VALUE2] [--value3 VALUE3]
+script.py: error: unrecognized arguments:  
+zsh: command not found: --value3=30
+```
+
+When running the script from an IDE passing the arguments, it all works, but the terminal command fails somehow. What the heck is going on?
+
+<details>
+  <summary>Hint 1</summary>
+
+  What happens if you run the script in a single line, `$ python3 script.py --value1=10 --value2=20 --value3=30`?
+</details>
+
+<details>
+  <summary>Hint 2</summary>
+
+  From the [bash manual](http://www.gnu.org/savannah-checkouts/gnu/bash/manual/bash.html):
+
+  > The backslash character `\` may be used to remove any special meaning for the next character read and for line continuation.
+  
+  Can there be anything peculiar about how the symbol is used at the end of the line?
+</details>
+
+<details>
+  <summary>Hint 3</summary>
+
+  Have you considered running [Shellcheck](https://www.shellcheck.net/) on your command to see if there are any issues?
+</details>
+
+<details>
+  <summary>Solution</summary>
+  
+  If you run Shellcheck on the script, you'll see an issue reported:
+
+  ```
+  Line 3:
+      --value2=20 \
+                  ^-- SC1101 (error): Delete trailing spaces after \ to break line (or use quotes for literal space).
+  ```
+
+  This [issue](https://github.com/koalaman/shellcheck/wiki/SC1101) means that if there are spaces after the backslash, the escape will apply to them instead of the line break, and the command will not continue on the next line. To prevent this from happening, you have to delete the trailing spaces to make the line break work correctly.
+
+  It's easy to leave some trailing whitespace which can be a nightmare to troubleshoot. Running a linter such as Shellcheck may save you a ton of time. If hacking in a terminal, watch out for those nasty ones!
+
+  Resources:
+  * [Bash manual](http://www.gnu.org/savannah-checkouts/gnu/bash/manual/bash.html)
+  * [Bash handbook](https://github.com/denysdovhan/bash-handbook)
+  * [Shellcheck](https://www.shellcheck.net/)
+  
+</details>
