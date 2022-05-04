@@ -632,3 +632,62 @@ When running the script from an IDE passing the arguments, it all works, but the
   * [Shellcheck](https://www.shellcheck.net/)
   
 </details>
+
+### A very stubborn directory
+
+It's time to write some shell scripts! A nice little Bash script that will save you some time, you think. You need to get a directory from user and delete all the files inside it (keeping the directory itself) as part of a larger workflow. That's easy, so you write:
+
+```bash
+#!/bin/bash
+
+function delete_dir() {
+    path=$1
+    rm -r "${path}/*"
+    tree ${path}
+}
+
+delete_dir datadir
+```
+
+When running `./run.sh` containing the code above (and having `datadir` directory in your `cwd`), you see that the directory still contains files as reported by the `tree` command. Trying to troubleshoot, you run the `rm` command in the terminal:
+
+```
+$ rm -r datadir/*
+```
+
+And this indeed deletes all the files inside the directory leaving the directory empty. Why on this green Earth doesn't this command clean up the directory when being run from the shell script?
+
+<details>
+  <summary>Hint 1</summary>
+
+  What happens if you run the `rm -r "${path}/*"` command in a terminal with `path` variable being set to some path?
+</details>
+
+<details>
+  <summary>Hint 2</summary>
+
+  Perhaps it's worth reading more about [globbing](https://en.wikipedia.org/wiki/Glob_(programming)) and in particular how globbing works inside quotes, see [Bash: Quoting](https://linux.die.net/man/1/bash).
+  
+  Can there be anything peculiar about using a wildcard inside quotes?
+</details>
+
+<details>
+  <summary>Hint 3</summary>
+
+  If you can't put a wilcard to glob all the files in a directory inside quotes, what syntax should then be used?
+</details>
+
+<details>
+  <summary>Solution</summary>
+  
+  Globbing doesn't work in either single or double quotes which is why the `rm -r "${path}/*"` command doesn't delete any files - they are not globbed! However, you may still want to use the quotes to be able to support paths containing whitespaces. One of the solutions is to place the wildcard after the quotes: 
+
+   ```bash
+   rm -r "${path}"/*
+   ````
+
+  Resources:
+  * [Bash manual](http://www.gnu.org/savannah-checkouts/gnu/bash/manual/bash.html)
+  * [Bash handbook](https://github.com/denysdovhan/bash-handbook)
+  
+</details>
